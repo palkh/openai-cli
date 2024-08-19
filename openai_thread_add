@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# Ensure the necessary environment variables are set
+if [ -z "${OPENAI_API_KEY}" ]; then
+  echo "Error: OPENAI_API_KEY environment variable is not set."
+  exit 1
+fi
+
+if [ -z "${OPENAI_THREAD_ID}" ]; then
+  echo "Error: OPENAI_THREAD_ID environment variable is not set."
+  exit 1
+fi
+
+# Check if a message has been passed as a parameter
+if [ -z "$1" ]; then
+  echo "Usage: $0 <message> [file1 file2 ...]"
+  exit 1
+fi
+
+# Message to be sent
+MESSAGE=$1
+shift
+
+# Remaining arguments are files
+FILES=("$@")
+
+# Build the JSON content part
+CONTENT_JSON_CONTENT_PARTS='[{"type": "text", "text": "'"${MESSAGE}"'"}]'
+
+# Initialize the attachments array if there are any files
+ATTACHMENTS_JSON="[]"
+if [ ${#FILES[@]} -gt 0 ]; then
+  ATTACHMENTS_JSON="["
+  for FILE in "${FILES[@]}"; do
+	ATTACHMENTS_JSON+='{"file_id": "'"${FILE}"'", "tools": [{"type": "code_interpreter"}, {"type": "file_search"}]},'
+  done
+  ATTACHMENTS_JSON="${ATTACHMENTS_JSON%?}"  # Remove trailing comma
+  ATTACHMENTS_JSON+="]"
+fi
+
+#echo $ATTACHMENTS_JSON
+
+# URL for the OpenAI API endpoint
+OPENAI_API_URL="https://api.openai.com/v1/threads/${OPENAI_THREAD_ID}/messages"
+
+# Construct the complete JSON payload
+PAYLOAD=$(jq -n \
+  --arg role "user" \
+  --argjson content "$CONTENT_JSON_CONTENT_PARTS" \
+  --argjson attachments "$ATTACHMENTS_JSON" \
+  '{
+    role: $role,
+    content: $content,
+    attachments: $attachments
+  }'
+)
+
+# Make the POST request to add the message to the thread
+RESPONSE=$(curl -s -X POST $OPENAI_API_URL \
+  -H "Authorization: Bearer ${OPENAI_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -H "OpenAI-Beta: assistants=v2" \
+  -d "${PAYLOAD}"
+)
+
+# Check for errors in the response
+if echo $RESPONSE | grep -q '"error"'; then
+  echo "Error adding message to thread: $RESPONSE"
+  exit 1
+else
+  echo $(echo $RESPONSE | jq -r '.id')
+fi

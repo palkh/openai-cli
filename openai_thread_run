@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Ensure required environment variables are set
+for var in OPENAI_THREAD_ID OPENAI_API_KEY OPENAI_ASSISTANT_ID; do
+  if [ -z "${!var}" ]; then
+    echo "Error: $var is not set."
+    exit 1
+  fi
+done
+
+# Set the endpoint URL
+URL="https://api.openai.com/v1/threads/$OPENAI_THREAD_ID/runs"
+
+# Define function_tool JSON using jq
+function_tool=$(jq -n '{
+  name: "execute_command",
+  description: "Execute a command in a UNIX shell",
+  strict: true,
+  parameters: {
+    type: "object",
+    properties: {
+      cmd: {
+        type: "string",
+        description: "The command to run"
+      }
+    },
+    required: ["cmd"],
+    additionalProperties: false
+  }
+}')
+
+# Create full JSON payload using jq
+json_payload=$(jq -n \
+  --arg assistant_id "$OPENAI_ASSISTANT_ID" \
+  --argjson function_tool "$function_tool" \
+  '{
+    assistant_id: $assistant_id,
+    tools: [
+      {type: "file_search"},
+      {type: "code_interpreter"},
+      {type: "function", function: $function_tool}
+    ]
+  }')
+
+# Perform the POST request with the correctly formatted JSON
+response=$(curl -s "$URL" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -H "OpenAI-Beta: assistants=v2" \
+  -d "$json_payload")
+
+# Check for errors in response
+if echo "$response" | grep -q '"error"'; then
+  echo "Error retrieving thread: $response"
+  exit 1
+fi
+
+# Output the response
+echo "Thread retrieved successfully:"
+echo "$response"

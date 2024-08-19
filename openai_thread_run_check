@@ -1,0 +1,22 @@
+#!/bin/bash
+
+if [ -z "$OPENAI_API_KEY" ]; then
+  echo "Error: OPENAI_API_KEY is not set."
+  exit 1
+fi
+
+if [ -z "$OPENAI_THREAD_ID" ]; then
+  echo "Error: OPENAI_THREAD_ID is not set."
+  exit 1
+fi
+
+run_id=$1
+
+response=$(curl -s "https://api.openai.com/v1/threads/$OPENAI_THREAD_ID/runs/$run_id" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "OpenAI-Beta: assistants=v2"
+)
+
+#echo $response
+
+echo $(echo $response | jq -r .status)

@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Ensure OPENAI_THREAD_ID and OPENAI_API_KEY environment variables are set
+if [ -z "$OPENAI_THREAD_ID" ]; then
+  echo "Error: OPENAI_THREAD_ID is not set."
+  exit 1
+fi
+
+if [ -z "$OPENAI_API_KEY" ]; then
+  echo "Error: OPENAI_API_KEY is not set."
+  exit 1
+fi
+
+limit="${1:-10}"
+order="${2:-desc}"
+# Set the endpoint URL
+URL="https://api.openai.com/v1/threads/$OPENAI_THREAD_ID/messages?limit=$limit&order=$order"
+
+#echo $URL
+
+# Perform the GET request
+response=$(curl -s -H "Content-Type: application/json" \
+                 -H "Authorization: Bearer $OPENAI_API_KEY" \
+                 -H "OpenAI-Beta: assistants=v2" \
+                 "$URL")
+
+# Check if the response contains an error
+if echo "$response" | grep -q '"error"'; then
+  echo "Error retrieving thread: $response"
+  exit 1
+fi
+
+# Output the response
+echo "Thread retrieved successfully:"
+echo "$response"

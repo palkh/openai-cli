@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Check if the necessary parameters are provided
+if [ "$#" -ne 1 ]; then
+  echo "Usage: $0 <file_id>"
+  exit 1
+fi
+
+# Get the file path and purpose
+file_id=$1
+
+
+# Ensure the API key is set
+if [ -z "$OPENAI_API_KEY" ]; then
+  echo "The environment variable OPENAI_API_KEY is not set. Please set it to your OpenAI API key."
+  exit 1
+fi
+
+# Upload the file
+response=$(curl -s https://api.openai.com/v1/files/$file_id \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -X DELETE
+)
+# Print a newline character to make the output more readable
+echo $(echo $response | jq -r .deleted)

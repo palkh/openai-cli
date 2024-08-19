@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Check if OPENAI_API_KEY is set
+if [ -z "${OPENAI_API_KEY}" ]; then
+  echo "Error: OPENAI_API_KEY environment variable is not set."
+  exit 1
+fi
+
+response=$(curl -s https://api.openai.com/v1/files \
+  	-H "Authorization: Bearer $OPENAI_API_KEY"
+)
+
+# Get array length
+length=$(echo $response | jq '.data | length')
+
+echo "Got $length Files!"
+
+# create the arrays
+idarray=()
+namearray=()
+
+# loop to fill the arrays
+for (( i=0;i<$length;i++ ));
+do
+  idarray[$i]=$(echo $response | jq -r ".data[$i].id")
+  namearray[$i]=$(echo $response | jq -r ".data[$i].filename // \"null\"")
+done
+
+#echo $idarray
+
+# print the arrays
+for index in ${!idarray[@]}; do
+  echo "id: ${idarray[index]}, name: ${namearray[index]}"
+done
+

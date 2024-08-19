@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# create our thread
+export OPENAI_THREAD_ID=$(openai_thread_create)
+
+# Directory to search
+search_dir=$1
+
+# Check if the directory argument is provided
+if [[ -z "$search_dir" ]]; then
+    echo "Usage: $0 <directory>"
+    exit 1
+fi
+
+# Check if the directory exists
+if [[ ! -d "$search_dir" ]]; then
+    echo "Directory does not exist: $search_dir"
+    exit 1
+fi
+
+
+system_message="You are currently working on the $(basename $search_dir) project. You will be given code files, and requests to help the devloppers."
+message="Here are some of the files of the $(basename $search_dir) project. You will be asked completions regarding the code it contains."
+
+
+readme_file=$(find "$search_dir" -maxdepth 1 -iname "$search_dir/readme.md" -exec sh -c "echo $(readlink -f {})" \;)
+
+#echo "Adding to Thread: $system_message $readme_file"
+openai_thread_add "$system_message"
+
+k=0
+
+all_outputs=""
+
+while IFS= read -r file; do
+    output=$(openai_files_upload "$file")
+    if [[ "$output" == "null" ]]; then
+        continue
+    fi
+    all_outputs+="$output "
+    k=$((k+1))
+    if [[ $k == 10 ]]; then
+	openai_thread_add "$message" $all_outputs
+	k=0
+	all_outputs=""
+    fi
+done < <(find "$search_dir" -type f \( -name "*.c" -o -name "*.py" -o -name "*.h" \))
+
+openai_thread_add "$message" $all_outputs
+
+echo $OPENAI_THREAD_ID
