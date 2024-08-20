@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# Ensure the necessary environment variables are set
+if [ -z "${OPENAI_API_KEY}" ]; then
+  echo "Error: OPENAI_API_KEY environment variable is not set."
+  exit 1
+fi
+
+if [ -z "${OPENAI_THREAD_ID}" ]; then
+  echo "Error: OPENAI_THREAD_ID environment variable is not set."
+  exit 1
+fi
+
+# Check if a message has been passed as a parameter
+if [ -z "$1" ]; then
+  echo "Usage: $0 <message> "
+  exit 1
+fi
+
+# Message to be sent
+MESSAGE=$1
+shift
+
+msg_id=$(openai_thread_add "$MESSAGE")
+
+# run the thread
+
+run_id=$(openai_thread_run | jq -r .id)
+
+echo "$run_id"
+
+run_status=$(openai_thread_run_check "$run_id")
+
+echo "Status: $run_status"
+
+
+while [ "$run_status" != "completed" ]
+do
+   echo "Status: $run_status"
+   if [[ $run_status == "expired" || $run_status == "failed" || $run_status == "cancelled" || $run_status == "cancelling" ]]; then
+	   echo "Error: runnning $run_id"
+	   exit 1
+   elif [[ $run_status == "requires_actions" ]]; then
+	   echo "doing action stuff";
+   fi
+
+   run_status=$(openai_thread_run_check "$run_id")
+done
+
+# het the last message
+
+response=$(openai_thread_get | jq -r .data[0].content[0].text)
+
+echo "$response"
+
+
+
+

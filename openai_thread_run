@@ -32,13 +32,11 @@ function_tool=$(jq -n '{
 # Create full JSON payload using jq
 json_payload=$(jq -n \
   --arg assistant_id "$OPENAI_ASSISTANT_ID" \
-  --argjson function_tool "$function_tool" \
   '{
     assistant_id: $assistant_id,
     tools: [
       {type: "file_search"},
-      {type: "code_interpreter"},
-      {type: "function", function: $function_tool}
+      {type: "code_interpreter"}
     ]
   }')
 
